@@ -1,20 +1,20 @@
 from fastapi import FastAPI
-from pydantic import BaseModel
+from starlette.responses import Response
+from starlette.requests  import Request
+from core.db import SessionLocal
+
+from routes import routes
+
 app = FastAPI()
 
-class User(BaseModel):
-    id: int
-    username: str
-    email: str
+@app.middleware("http")
+async def db_session_middleware(request: Request, call_next):
+    response = Response("Internal server error", status_code=500)
+    try:
+        request.state.db = SessionLocal()
+        response = await call_next(request)
+    finally:
+        request.state.db.close()
+    return response
 
-@app.post("/user/")
-def set_user(user: User):
-    return {"key": user}
-
-@app.get("/user/{user_id}")
-def main(user_id: int):
-    user = {
-        "id": 2,
-        "username": "Mike"
-    }
-    return {"key": user}
+app.include_router(routes)
